@@ -17,12 +17,12 @@ All colors MUST be HSL.
     --popover: 0 0% 100%;
     --popover-foreground: 220 13% 18%;
 
-    --primary: 280 100% 70%;
+    --primary: 13 93% 66%;
     --primary-foreground: 0 0% 100%;
-    --primary-glow: 290 100% 80%;
+    --primary-glow: 20 100% 75%;
 
-    --secondary: 320 100% 85%;
-    --secondary-foreground: 280 100% 25%;
+    --secondary: 13 100% 95%;
+    --secondary-foreground: 13 93% 20%;
 
     --muted: 240 5% 96%;
     --muted-foreground: 240 4% 46%;
@@ -37,11 +37,15 @@ All colors MUST be HSL.
     --input: 240 6% 90%;
     --ring: 280 100% 70%;
 
-    --gradient-primary: linear-gradient(135deg, hsl(280 100% 70%), hsl(320 100% 70%));
-    --gradient-secondary: linear-gradient(135deg, hsl(320 100% 85%), hsl(300 100% 90%));
-    --gradient-hero: linear-gradient(135deg, hsl(280 100% 70%) 0%, hsl(320 100% 70%) 50%, hsl(300 100% 75%) 100%);
+    --gradient-primary: linear-gradient(135deg, hsl(13 93% 66%), hsl(20 100% 75%));
+    --gradient-secondary: linear-gradient(135deg, hsl(13 100% 95%), hsl(20 100% 90%));
+    --gradient-hero: linear-gradient(135deg, hsl(13 93% 66%) 0%, hsl(20 100% 75%) 50%, hsl(25 100% 80%) 100%);
     
-    --shadow-primary: 0 10px 30px -10px hsl(280 100% 70% / 0.3);
+    --shadow-primary: 0 10px 30px -10px hsl(13 93% 66% / 0.3);
+    --shadow-glow: 0 0 40px hsl(20 100% 75% / 0.15);
+    
+    --wattpad-orange: 13 93% 66%;
+    --wattpad-dark: 220 13% 18%;
     --shadow-card: 0 4px 20px -4px hsl(240 6% 90% / 0.4);
 
     --radius: 0.5rem;

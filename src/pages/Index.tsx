@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Header } from '@/components/Header';
 import { StoryCard } from '@/components/StoryCard';
 import { Button } from '@/components/ui/button';
@@ -7,13 +7,52 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { mockStories, popularGenres, trendingTags } from '@/data/mockData';
 import { TrendingUp, Crown, Clock, Star, BookOpen, Users, Flame } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { useNavigate } from 'react-router-dom';
 
 const Index = () => {
+  const navigate = useNavigate();
   const [selectedGenre, setSelectedGenre] = useState<string | null>(null);
+  const [stories, setStories] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const featuredStory = mockStories[0];
-  const trendingStories = mockStories.slice(0, 3);
-  const newStories = mockStories;
+  useEffect(() => {
+    fetchStories();
+  }, []);
+
+  const fetchStories = async () => {
+    try {
+      const { data } = await supabase
+        .from('stories')
+        .select(`
+          *,
+          profiles!stories_user_id_fkey (
+            username,
+            display_name,
+            avatar_url
+          ),
+          story_genres (
+            genres (name)
+          )
+        `)
+        .eq('published', true)
+        .order('created_at', { ascending: false })
+        .limit(20);
+
+      setStories(data || []);
+    } catch (error) {
+      console.error('Error fetching stories:', error);
+      // Fallback to mock data if there's an error
+      setStories(mockStories);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const displayStories = stories.length > 0 ? stories : mockStories;
+  const featuredStory = displayStories[0];
+  const trendingStories = displayStories.slice(0, 3);
+  const newStories = displayStories;
 
   return (
     <div className="min-h-screen bg-background">
@@ -36,11 +75,19 @@ const Index = () => {
                 Share your own story and join a community of passionate readers and writers.
               </p>
               <div className="flex flex-col sm:flex-row gap-4">
-                <Button size="lg" className="bg-gradient-to-r from-primary to-primary-glow hover:opacity-90">
+                <Button 
+                  size="lg" 
+                  className="bg-gradient-to-r from-primary to-primary-glow hover:opacity-90"
+                  onClick={() => navigate('/discover')}
+                >
                   <BookOpen className="w-5 h-5 mr-2" />
                   Start Reading
                 </Button>
-                <Button size="lg" variant="outline">
+                <Button 
+                  size="lg" 
+                  variant="outline"
+                  onClick={() => navigate('/write')}
+                >
                   <Star className="w-5 h-5 mr-2" />
                   Start Writing
                 </Button>

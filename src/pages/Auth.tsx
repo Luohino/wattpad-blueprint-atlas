@@ -6,43 +6,57 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useAuth } from '@/hooks/useAuth';
+import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Book, Upload } from 'lucide-react';
+import { Loader2, Book } from 'lucide-react';
 
 export default function Auth() {
-  const { user, loading, signUp, checkEmailExists, signIn } = useAuth();
+  const { user, sendSignupOTP, verifySignupOTP, signIn, sendForgotPasswordOTP, verifyForgotPasswordOTP, loading: authLoading } = useAuth();
   const { toast } = useToast();
   const [searchParams] = useSearchParams();
-  const mode = searchParams.get('mode'); // 'reset' for password reset
   
+  const [activeTab, setActiveTab] = useState('signin');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
-  const [currentTab, setCurrentTab] = useState<'signin' | 'signup' | 'forgot'>('signin');
-  
-  // Form data
-  const [signInData, setSignInData] = useState({ email: '', password: '' });
-  const [signupData, setSignupData] = useState({
+  const [currentStep, setCurrentStep] = useState('email'); // email, otp, details, complete
+
+  // Sign in form data
+  const [signInData, setSignInData] = useState({
     email: '',
+    password: ''
+  });
+
+  // Sign up form data
+  const [signUpData, setSignUpData] = useState({
+    email: '',
+    otp: '',
     password: '',
     confirmPassword: '',
     username: '',
     displayName: '',
-    profilePic: ''
+    profilePicture: null as File | null
   });
-  const [forgotData, setForgotData] = useState({ email: '' });
+
+  // Forgot password form data
+  const [forgotPasswordData, setForgotPasswordData] = useState({
+    email: '',
+    otp: '',
+    newPassword: '',
+    confirmNewPassword: ''
+  });
 
   useEffect(() => {
+    const mode = searchParams.get('mode');
     if (mode === 'reset') {
-      setCurrentTab('forgot');
+      setActiveTab('forgot');
     }
-  }, [mode]);
+  }, [searchParams]);
 
-  if (loading) {
+  if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <Loader2 className="h-8 w-8 animate-spin" />
       </div>
     );
   }
@@ -56,85 +70,124 @@ export default function Auth() {
     setIsLoading(true);
     setError('');
 
-    // Check if email exists first
-    const { exists } = await checkEmailExists(signInData.email);
-    if (!exists) {
-      setError('No account found with this email address');
-      setIsLoading(false);
-      return;
-    }
-
     const { error } = await signIn(signInData.email, signInData.password);
-    
+
     if (error) {
       setError(error.message);
     }
-    
     setIsLoading(false);
   };
 
-  const handleSignUp = async (e: React.FormEvent) => {
+  const handleSignUpStep1 = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError('');
 
-    if (signupData.password !== signupData.confirmPassword) {
-      setError('Passwords do not match');
-      setIsLoading(false);
-      return;
-    }
+    const { error } = await sendSignupOTP(signUpData.email);
 
-    if (signupData.password.length < 6) {
-      setError('Password must be at least 6 characters');
-      setIsLoading(false);
-      return;
+    if (error) {
+      setError(error.message);
+    } else {
+      setCurrentStep('otp');
     }
+    setIsLoading(false);
+  };
 
-    if (!signupData.username || !signupData.displayName) {
-      setError('Username and display name are required');
-      setIsLoading(false);
-      return;
-    }
+  const handleSignUpStep2 = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError('');
 
-    const { error } = await signUp(
-      signupData.email,
-      signupData.password,
-      signupData.username,
-      signupData.displayName
+    const { error } = await verifySignupOTP(
+      signUpData.email,
+      signUpData.otp,
+      signUpData.password,
+      signUpData.username,
+      signUpData.displayName
     );
-    
+
     if (error) {
       setError(error.message);
     } else {
-      toast({
-        title: "Account Created",
-        description: "Welcome to our community!",
-      });
+      setCurrentStep('complete');
+      setTimeout(() => {
+        setActiveTab('signin');
+        setCurrentStep('email');
+        setSignUpData({
+          email: '',
+          otp: '',
+          password: '',
+          confirmPassword: '',
+          username: '',
+          displayName: '',
+          profilePicture: null
+        });
+      }, 2000);
     }
-    
     setIsLoading(false);
   };
 
-  const handleForgotPassword = async (e: React.FormEvent) => {
+  const handleSignUpStep3 = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (signUpData.password !== signUpData.confirmPassword) {
+      setError('Passwords do not match');
+      return;
+    }
+    if (signUpData.password.length < 6) {
+      setError('Password must be at least 6 characters');
+      return;
+    }
+
+    setCurrentStep('details');
+  };
+
+  const handleForgotPasswordStep1 = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError('');
 
-    // Use Supabase built-in password reset
-    const { supabase } = await import('@/integrations/supabase/client');
-    const { error } = await supabase.auth.resetPasswordForEmail(forgotData.email, {
-      redirectTo: `${window.location.origin}/auth?mode=reset`
-    });
-    
+    const { error } = await sendForgotPasswordOTP(forgotPasswordData.email);
+
     if (error) {
       setError(error.message);
     } else {
-      toast({
-        title: "Reset Link Sent",
-        description: "Check your email for the password reset link",
+      setCurrentStep('otp');
+    }
+    setIsLoading(false);
+  };
+
+  const handleForgotPasswordStep2 = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (forgotPasswordData.newPassword !== forgotPasswordData.confirmNewPassword) {
+      setError('Passwords do not match');
+      return;
+    }
+    if (forgotPasswordData.newPassword.length < 6) {
+      setError('Password must be at least 6 characters');
+      return;
+    }
+
+    setIsLoading(true);
+    setError('');
+
+    const { error } = await verifyForgotPasswordOTP(
+      forgotPasswordData.email,
+      forgotPasswordData.otp,
+      forgotPasswordData.newPassword
+    );
+
+    if (error) {
+      setError(error.message);
+    } else {
+      setActiveTab('signin');
+      setCurrentStep('email');
+      setForgotPasswordData({
+        email: '',
+        otp: '',
+        newPassword: '',
+        confirmNewPassword: ''
       });
     }
-    
     setIsLoading(false);
   };
 
@@ -146,49 +199,56 @@ export default function Auth() {
           <h1 className="text-3xl font-bold text-foreground">Wattpad Clone</h1>
         </div>
 
-        <Tabs value={currentTab} onValueChange={(value) => setCurrentTab(value as any)} className="w-full">
+        <Tabs value={activeTab} onValueChange={(tab) => {
+          setActiveTab(tab);
+          setCurrentStep('email');
+          setError('');
+        }} className="w-full">
           <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="signin">Sign In</TabsTrigger>
             <TabsTrigger value="signup">Sign Up</TabsTrigger>
             <TabsTrigger value="forgot">Forgot Password</TabsTrigger>
           </TabsList>
 
-          {/* Sign In Tab */}
           <TabsContent value="signin">
             <Card>
               <CardHeader>
                 <CardTitle>Welcome Back</CardTitle>
-                <CardDescription>Sign in to continue reading and writing</CardDescription>
+                <CardDescription>
+                  Sign in to your account to continue reading and writing
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 <form onSubmit={handleSignIn} className="space-y-4">
-                  <div>
-                    <Label htmlFor="signin-email">Email</Label>
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email</Label>
                     <Input
-                      id="signin-email"
+                      id="email"
                       type="email"
                       value={signInData.email}
-                      onChange={(e) => setSignInData({ ...signInData, email: e.target.value })}
+                      onChange={(e) => setSignInData({...signInData, email: e.target.value})}
                       required
                     />
                   </div>
-                  <div>
-                    <Label htmlFor="signin-password">Password</Label>
+                  <div className="space-y-2">
+                    <Label htmlFor="password">Password</Label>
                     <Input
-                      id="signin-password"
+                      id="password"
                       type="password"
                       value={signInData.password}
-                      onChange={(e) => setSignInData({ ...signInData, password: e.target.value })}
+                      onChange={(e) => setSignInData({...signInData, password: e.target.value})}
                       required
                     />
                   </div>
+
                   {error && (
                     <Alert variant="destructive">
                       <AlertDescription>{error}</AlertDescription>
                     </Alert>
                   )}
+
                   <Button type="submit" className="w-full" disabled={isLoading}>
-                    {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
                     Sign In
                   </Button>
                 </form>
@@ -196,128 +256,255 @@ export default function Auth() {
             </Card>
           </TabsContent>
 
-          {/* Sign Up Tab */}
           <TabsContent value="signup">
             <Card>
               <CardHeader>
                 <CardTitle>Create Account</CardTitle>
-                <CardDescription>Join our community of readers and writers</CardDescription>
+                <CardDescription>
+                  {currentStep === 'email' && 'Enter your email to get started'}
+                  {currentStep === 'otp' && 'Enter the OTP sent to your email'}
+                  {currentStep === 'details' && 'Complete your profile'}
+                  {currentStep === 'complete' && 'Account created successfully!'}
+                </CardDescription>
               </CardHeader>
               <CardContent>
-                <form onSubmit={handleSignUp} className="space-y-4">
-                  <div>
-                    <Label htmlFor="signup-email">Email</Label>
-                    <Input
-                      id="signup-email"
-                      type="email"
-                      value={signupData.email}
-                      onChange={(e) => setSignupData({ ...signupData, email: e.target.value })}
-                      required
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="signup-password">Password</Label>
-                    <Input
-                      id="signup-password"
-                      type="password"
-                      value={signupData.password}
-                      onChange={(e) => setSignupData({ ...signupData, password: e.target.value })}
-                      required
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="signup-confirm-password">Confirm Password</Label>
-                    <Input
-                      id="signup-confirm-password"
-                      type="password"
-                      value={signupData.confirmPassword}
-                      onChange={(e) => setSignupData({ ...signupData, confirmPassword: e.target.value })}
-                      required
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="signup-username">Username</Label>
-                    <Input
-                      id="signup-username"
-                      value={signupData.username}
-                      onChange={(e) => setSignupData({ ...signupData, username: e.target.value })}
-                      required
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="signup-display-name">Display Name</Label>
-                    <Input
-                      id="signup-display-name"
-                      value={signupData.displayName}
-                      onChange={(e) => setSignupData({ ...signupData, displayName: e.target.value })}
-                      required
-                    />
-                  </div>
-                  <div>
-                    <Label>Profile Picture (Optional)</Label>
-                    <div className="flex items-center gap-4 mt-2">
-                      <Avatar className="h-16 w-16">
-                        <AvatarImage src={signupData.profilePic} />
-                        <AvatarFallback>
-                          <Upload className="h-6 w-6" />
-                        </AvatarFallback>
-                      </Avatar>
+                {currentStep === 'email' && (
+                  <form onSubmit={handleSignUpStep1} className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="email">Email</Label>
                       <Input
+                        id="email"
+                        type="email"
+                        value={signUpData.email}
+                        onChange={(e) => setSignUpData({...signUpData, email: e.target.value})}
+                        required
+                      />
+                    </div>
+
+                    {error && (
+                      <Alert variant="destructive">
+                        <AlertDescription>{error}</AlertDescription>
+                      </Alert>
+                    )}
+
+                    <Button type="submit" className="w-full" disabled={isLoading}>
+                      {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                      Send OTP
+                    </Button>
+                  </form>
+                )}
+
+                {currentStep === 'otp' && (
+                  <form onSubmit={handleSignUpStep3} className="space-y-4">
+                    <div className="space-y-2">
+                      <Label>Enter OTP sent to {signUpData.email}</Label>
+                      <div className="flex justify-center">
+                        <InputOTP
+                          maxLength={6}
+                          value={signUpData.otp}
+                          onChange={(value) => setSignUpData({...signUpData, otp: value})}
+                        >
+                          <InputOTPGroup>
+                            <InputOTPSlot index={0} />
+                            <InputOTPSlot index={1} />
+                            <InputOTPSlot index={2} />
+                            <InputOTPSlot index={3} />
+                            <InputOTPSlot index={4} />
+                            <InputOTPSlot index={5} />
+                          </InputOTPGroup>
+                        </InputOTP>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="password">Password</Label>
+                        <Input
+                          id="password"
+                          type="password"
+                          value={signUpData.password}
+                          onChange={(e) => setSignUpData({...signUpData, password: e.target.value})}
+                          required
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="confirmPassword">Confirm Password</Label>
+                        <Input
+                          id="confirmPassword"
+                          type="password"
+                          value={signUpData.confirmPassword}
+                          onChange={(e) => setSignUpData({...signUpData, confirmPassword: e.target.value})}
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    {error && (
+                      <Alert variant="destructive">
+                        <AlertDescription>{error}</AlertDescription>
+                      </Alert>
+                    )}
+
+                    <Button type="submit" className="w-full" disabled={isLoading}>
+                      {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                      Continue
+                    </Button>
+                  </form>
+                )}
+
+                {currentStep === 'details' && (
+                  <form onSubmit={handleSignUpStep2} className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="username">Username</Label>
+                        <Input
+                          id="username"
+                          value={signUpData.username}
+                          onChange={(e) => setSignUpData({...signUpData, username: e.target.value})}
+                          required
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="displayName">Display Name</Label>
+                        <Input
+                          id="displayName"
+                          value={signUpData.displayName}
+                          onChange={(e) => setSignUpData({...signUpData, displayName: e.target.value})}
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="profilePicture">Profile Picture (Optional)</Label>
+                      <Input
+                        id="profilePicture"
                         type="file"
                         accept="image/*"
                         onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) {
-                            const url = URL.createObjectURL(file);
-                            setSignupData({ ...signupData, profilePic: url });
-                          }
+                          const file = e.target.files?.[0] || null;
+                          setSignUpData({...signUpData, profilePicture: file});
                         }}
                       />
                     </div>
+
+                    {error && (
+                      <Alert variant="destructive">
+                        <AlertDescription>{error}</AlertDescription>
+                      </Alert>
+                    )}
+
+                    <Button type="submit" className="w-full" disabled={isLoading}>
+                      {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                      Create Account
+                    </Button>
+                  </form>
+                )}
+
+                {currentStep === 'complete' && (
+                  <div className="text-center space-y-4">
+                    <div className="text-green-600 font-semibold">
+                      Account created successfully! Redirecting to sign in...
+                    </div>
                   </div>
-                  {error && (
-                    <Alert variant="destructive">
-                      <AlertDescription>{error}</AlertDescription>
-                    </Alert>
-                  )}
-                  <Button type="submit" className="w-full" disabled={isLoading}>
-                    {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    Create Account
-                  </Button>
-                </form>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
 
-          {/* Forgot Password Tab */}
           <TabsContent value="forgot">
             <Card>
               <CardHeader>
                 <CardTitle>Reset Password</CardTitle>
-                <CardDescription>Enter your email to receive a reset link</CardDescription>
+                <CardDescription>
+                  {currentStep === 'email' && 'Enter your email to receive OTP'}
+                  {currentStep === 'otp' && 'Enter OTP and set new password'}
+                </CardDescription>
               </CardHeader>
               <CardContent>
-                <form onSubmit={handleForgotPassword} className="space-y-4">
-                  <div>
-                    <Label htmlFor="forgot-email">Email</Label>
-                    <Input
-                      id="forgot-email"
-                      type="email"
-                      value={forgotData.email}
-                      onChange={(e) => setForgotData({ ...forgotData, email: e.target.value })}
-                      required
-                    />
-                  </div>
-                  {error && (
-                    <Alert variant="destructive">
-                      <AlertDescription>{error}</AlertDescription>
-                    </Alert>
-                  )}
-                  <Button type="submit" className="w-full" disabled={isLoading}>
-                    {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    Send Reset Link
-                  </Button>
-                </form>
+                {currentStep === 'email' && (
+                  <form onSubmit={handleForgotPasswordStep1} className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="resetEmail">Email</Label>
+                      <Input
+                        id="resetEmail"
+                        type="email"
+                        value={forgotPasswordData.email}
+                        onChange={(e) => setForgotPasswordData({...forgotPasswordData, email: e.target.value})}
+                        required
+                      />
+                    </div>
+
+                    {error && (
+                      <Alert variant="destructive">
+                        <AlertDescription>{error}</AlertDescription>
+                      </Alert>
+                    )}
+
+                    <Button type="submit" className="w-full" disabled={isLoading}>
+                      {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                      Send OTP
+                    </Button>
+                  </form>
+                )}
+
+                {currentStep === 'otp' && (
+                  <form onSubmit={handleForgotPasswordStep2} className="space-y-4">
+                    <div className="space-y-2">
+                      <Label>Enter OTP sent to {forgotPasswordData.email}</Label>
+                      <div className="flex justify-center">
+                        <InputOTP
+                          maxLength={6}
+                          value={forgotPasswordData.otp}
+                          onChange={(value) => setForgotPasswordData({...forgotPasswordData, otp: value})}
+                        >
+                          <InputOTPGroup>
+                            <InputOTPSlot index={0} />
+                            <InputOTPSlot index={1} />
+                            <InputOTPSlot index={2} />
+                            <InputOTPSlot index={3} />
+                            <InputOTPSlot index={4} />
+                            <InputOTPSlot index={5} />
+                          </InputOTPGroup>
+                        </InputOTP>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="newPassword">New Password</Label>
+                        <Input
+                          id="newPassword"
+                          type="password"
+                          value={forgotPasswordData.newPassword}
+                          onChange={(e) => setForgotPasswordData({...forgotPasswordData, newPassword: e.target.value})}
+                          required
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="confirmNewPassword">Confirm New Password</Label>
+                        <Input
+                          id="confirmNewPassword"
+                          type="password"
+                          value={forgotPasswordData.confirmNewPassword}
+                          onChange={(e) => setForgotPasswordData({...forgotPasswordData, confirmNewPassword: e.target.value})}
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    {error && (
+                      <Alert variant="destructive">
+                        <AlertDescription>{error}</AlertDescription>
+                      </Alert>
+                    )}
+
+                    <Button type="submit" className="w-full" disabled={isLoading}>
+                      {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                      Reset Password
+                    </Button>
+                  </form>
+                )}
               </CardContent>
             </Card>
           </TabsContent>

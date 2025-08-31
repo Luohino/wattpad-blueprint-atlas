@@ -27,42 +27,54 @@ export function useAuth() {
     return () => subscription.unsubscribe();
   }, []);
 
-  // Regular signup with email/password
-  const signUp = async (email: string, password: string, username: string, displayName: string) => {
-    const { error } = await supabase.auth.signUp({
+  // Send OTP for forgot password
+  const sendForgotPasswordOTP = async (email: string) => {
+    const { error } = await supabase.auth.signInWithOtp({
+      email,
+      options: {
+        shouldCreateUser: false,
+      }
+    });
+    return { error };
+  };
+
+  // Send OTP for signup verification
+  const sendSignupOTP = async (email: string) => {
+    const { error } = await supabase.auth.signInWithOtp({
+      email,
+      options: {
+        shouldCreateUser: false, // Don't create user yet
+      }
+    });
+    return { error };
+  };
+
+  // Verify OTP and complete signup
+  const verifySignupOTP = async (email: string, token: string, password: string, username: string, displayName: string) => {
+    // First verify the OTP
+    const { error: verifyError } = await supabase.auth.verifyOtp({
+      email,
+      token,
+      type: 'email'
+    });
+
+    if (verifyError) {
+      return { error: verifyError };
+    }
+
+    // After OTP verification, create the user account
+    const { error: signupError } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        emailRedirectTo: `${window.location.origin}/`,
         data: {
           username,
           display_name: displayName
         }
       }
     });
-    return { error };
-  };
 
-  // Check if email exists
-  const checkEmailExists = async (email: string) => {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('user_id')
-      .eq('user_id', 'dummy') // This will always return empty but won't error
-      .limit(1);
-    
-    // Try to sign in with a dummy password to check if email exists
-    const { error: signInError } = await supabase.auth.signInWithPassword({
-      email,
-      password: 'dummy_password_to_check_email'
-    });
-
-    // If error is "Invalid login credentials", email doesn't exist
-    // If error is anything else, email likely exists
-    return { 
-      exists: signInError?.message !== 'Invalid login credentials',
-      error: null
-    };
+    return { error: signupError };
   };
 
   const signIn = async (email: string, password: string) => {
@@ -73,26 +85,20 @@ export function useAuth() {
     return { error };
   };
 
-  // Send OTP for password reset
-  const sendPasswordResetOTP = async (email: string) => {
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/auth?mode=reset`
-    });
-    return { error };
-  };
-
-  // Reset password with OTP
-  const resetPasswordWithOTP = async (email: string, token: string, newPassword: string) => {
-    const { error } = await supabase.auth.verifyOtp({
+  // Verify forgot password OTP and reset password
+  const verifyForgotPasswordOTP = async (email: string, token: string, newPassword: string) => {
+    // First verify the OTP
+    const { error: verifyError } = await supabase.auth.verifyOtp({
       email,
       token,
-      type: 'recovery'
+      type: 'email'
     });
 
-    if (error) {
-      return { error };
+    if (verifyError) {
+      return { error: verifyError };
     }
 
+    // After OTP verification, update the password
     const { error: updateError } = await supabase.auth.updateUser({
       password: newPassword
     });
@@ -109,11 +115,11 @@ export function useAuth() {
     user,
     session,
     loading,
-    signUp,
-    checkEmailExists,
+    sendSignupOTP,
+    verifySignupOTP,
     signIn,
-    sendPasswordResetOTP,
-    resetPasswordWithOTP,
+    sendForgotPasswordOTP,
+    verifyForgotPasswordOTP,
     signOut
   };
 }

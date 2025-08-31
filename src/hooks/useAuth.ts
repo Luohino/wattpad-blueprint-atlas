@@ -27,43 +27,20 @@ export function useAuth() {
     return () => subscription.unsubscribe();
   }, []);
 
-  // Send OTP for signup
-  const sendSignUpOTP = async (email: string) => {
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
-      options: {
-        shouldCreateUser: false
-      }
-    });
-    return { error };
-  };
-
-  // Verify OTP and create user
-  const verifyOTPAndSignUp = async (email: string, token: string, password: string, username: string, displayName: string) => {
-    // First verify the OTP
-    const { error: verifyError } = await supabase.auth.verifyOtp({
-      email,
-      token,
-      type: 'email'
-    });
-
-    if (verifyError) {
-      return { error: verifyError };
-    }
-
-    // Then create the user account
-    const { error: signUpError } = await supabase.auth.signUp({
+  // Regular signup with email/password
+  const signUp = async (email: string, password: string, username: string, displayName: string) => {
+    const { error } = await supabase.auth.signUp({
       email,
       password,
       options: {
+        emailRedirectTo: `${window.location.origin}/`,
         data: {
           username,
           display_name: displayName
         }
       }
     });
-
-    return { error: signUpError };
+    return { error };
   };
 
   // Check if email exists
@@ -132,8 +109,7 @@ export function useAuth() {
     user,
     session,
     loading,
-    sendSignUpOTP,
-    verifyOTPAndSignUp,
+    signUp,
     checkEmailExists,
     signIn,
     sendPasswordResetOTP,

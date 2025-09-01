@@ -503,7 +503,25 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_trending_stories: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          comments_count: number
+          cover_url: string
+          created_at: string
+          description: string
+          id: string
+          reads_count: number
+          title: string
+          trending_score: number
+          user_id: string
+          votes_count: number
+        }[]
+      }
+      increment_reads_count: {
+        Args: { story_id_param: string }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never

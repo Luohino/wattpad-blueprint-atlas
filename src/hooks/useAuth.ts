@@ -27,54 +27,36 @@ export function useAuth() {
     return () => subscription.unsubscribe();
   }, []);
 
-  // Send OTP for forgot password
-  const sendForgotPasswordOTP = async (email: string) => {
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
-      options: {
-        shouldCreateUser: false,
-      }
-    });
-    return { error };
-  };
-
-  // Send OTP for signup verification
-  const sendSignupOTP = async (email: string) => {
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
-      options: {
-        shouldCreateUser: false, // Don't create user yet
-      }
-    });
-    return { error };
-  };
-
-  // Verify OTP and complete signup
-  const verifySignupOTP = async (email: string, token: string, password: string, username: string, displayName: string) => {
-    // First verify the OTP
-    const { error: verifyError } = await supabase.auth.verifyOtp({
-      email,
-      token,
-      type: 'email'
-    });
-
-    if (verifyError) {
-      return { error: verifyError };
-    }
-
-    // After OTP verification, create the user account
-    const { error: signupError } = await supabase.auth.signUp({
+// Fix signup system to use email confirmation instead of OTP
+  const signUp = async (email: string, password: string, username: string, displayName: string) => {
+    const { error } = await supabase.auth.signUp({
       email,
       password,
       options: {
+        emailRedirectTo: `${window.location.origin}/auth`,
         data: {
           username,
           display_name: displayName
         }
       }
     });
+    return { error };
+  };
 
-    return { error: signupError };
+  // Reset password with email link
+  const sendPasswordReset = async (email: string) => {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/auth?mode=reset`
+    });
+    return { error };
+  };
+
+  // Update password
+  const updatePassword = async (password: string) => {
+    const { error } = await supabase.auth.updateUser({
+      password
+    });
+    return { error };
   };
 
   const signIn = async (email: string, password: string) => {
@@ -86,24 +68,12 @@ export function useAuth() {
   };
 
   // Verify forgot password OTP and reset password
-  const verifyForgotPasswordOTP = async (email: string, token: string, newPassword: string) => {
-    // First verify the OTP
-    const { error: verifyError } = await supabase.auth.verifyOtp({
-      email,
-      token,
-      type: 'email'
-    });
-
-    if (verifyError) {
-      return { error: verifyError };
-    }
-
-    // After OTP verification, update the password
-    const { error: updateError } = await supabase.auth.updateUser({
+  const resetPassword = async (newPassword: string) => {
+    const { error } = await supabase.auth.updateUser({
       password: newPassword
     });
 
-    return { error: updateError };
+    return { error };
   };
 
   const signOut = async () => {
@@ -115,11 +85,11 @@ export function useAuth() {
     user,
     session,
     loading,
-    sendSignupOTP,
-    verifySignupOTP,
+    signUp,
     signIn,
-    sendForgotPasswordOTP,
-    verifyForgotPasswordOTP,
+    sendPasswordReset,
+    updatePassword,
+    resetPassword,
     signOut
   };
 }

@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { PlusCircle, X, Save, Eye, BookOpen, FileText } from 'lucide-react';
+import { PlusCircle, X, Save, Eye, BookOpen, FileText, Upload, Image } from 'lucide-react';
 import { Header } from '@/components/Header';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -34,6 +34,8 @@ export default function Write() {
   const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
   const [tags, setTags] = useState<string[]>([]);
   const [currentTag, setCurrentTag] = useState('');
+  const [coverFile, setCoverFile] = useState<File | null>(null);
+  const [coverPreview, setCoverPreview] = useState<string>('');
   
   // Chapter form state
   const [chapterData, setChapterData] = useState({
@@ -41,6 +43,8 @@ export default function Write() {
     content: '',
     published: false
   });
+  const [chapterImageFile, setChapterImageFile] = useState<File | null>(null);
+  const [chapterImagePreview, setChapterImagePreview] = useState<string>('');
 
   useEffect(() => {
     fetchGenres();
@@ -98,6 +102,88 @@ export default function Write() {
     );
   };
 
+  const handleCoverChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) { // 5MB limit
+        toast.error('File too large. Please choose an image under 5MB.');
+        return;
+      }
+      setCoverFile(file);
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setCoverPreview(e.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleChapterImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) { // 5MB limit
+        toast.error('File too large. Please choose an image under 5MB.');
+        return;
+      }
+      setChapterImageFile(file);
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setChapterImagePreview(e.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const uploadCoverImage = async (): Promise<string | null> => {
+    if (!coverFile || !user) return null;
+
+    try {
+      const fileExt = coverFile.name.split('.').pop();
+      const fileName = `${user.id}/story-covers/${Date.now()}.${fileExt}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('story-covers')
+        .upload(fileName, coverFile);
+
+      if (uploadError) throw uploadError;
+
+      const { data } = supabase.storage
+        .from('story-covers')
+        .getPublicUrl(fileName);
+
+      return data.publicUrl;
+    } catch (error) {
+      console.error('Error uploading cover:', error);
+      toast.error('Failed to upload cover image');
+      return null;
+    }
+  };
+
+  const uploadChapterImage = async (): Promise<string | null> => {
+    if (!chapterImageFile || !user) return null;
+
+    try {
+      const fileExt = chapterImageFile.name.split('.').pop();
+      const fileName = `${user.id}/chapter-images/${Date.now()}.${fileExt}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('chapter-images')
+        .upload(fileName, chapterImageFile);
+
+      if (uploadError) throw uploadError;
+
+      const { data } = supabase.storage
+        .from('chapter-images')
+        .getPublicUrl(fileName);
+
+      return data.publicUrl;
+    } catch (error) {
+      console.error('Error uploading chapter image:', error);
+      toast.error('Failed to upload chapter image');
+      return null;
+    }
+  };
+
   const saveStory = async (publishStatus: boolean) => {
     if (!storyData.title.trim()) {
       toast.error('Story title is required');
@@ -107,6 +193,12 @@ export default function Write() {
     setIsSubmitting(true);
     
     try {
+      // Upload cover image if one was selected
+      let coverUrl = null;
+      if (coverFile) {
+        coverUrl = await uploadCoverImage();
+      }
+
       // Create story
       const { data: story, error: storyError } = await supabase
         .from('stories')
@@ -114,6 +206,7 @@ export default function Write() {
           user_id: user.id,
           title: storyData.title,
           description: storyData.description,
+          cover_url: coverUrl,
           status: storyData.status,
           maturity_rating: storyData.maturityRating,
           language: storyData.language,
@@ -153,6 +246,12 @@ export default function Write() {
         const wordCount = chapterData.content.trim().split(/\s+/).length;
         const readTime = Math.max(1, Math.ceil(wordCount / 200));
 
+        // Upload chapter image if one was selected
+        let chapterImageUrl = null;
+        if (chapterImageFile) {
+          chapterImageUrl = await uploadChapterImage();
+        }
+
         await supabase
           .from('chapters')
           .insert({
@@ -185,6 +284,10 @@ export default function Write() {
       });
       setSelectedGenres([]);
       setTags([]);
+      setCoverFile(null);
+      setCoverPreview('');
+      setChapterImageFile(null);
+      setChapterImagePreview('');
       
     } catch (error) {
       console.error('Error saving story:', error);
@@ -299,6 +402,62 @@ export default function Write() {
                   </div>
                 </div>
 
+                {/* Cover Image */}
+                <div>
+                  <Label>Story Cover</Label>
+                  <div className="mt-2 space-y-4">
+                    {coverPreview ? (
+                      <div className="relative w-32 h-48 mx-auto">
+                        <img
+                          src={coverPreview}
+                          alt="Cover preview"
+                          className="w-full h-full object-cover rounded-lg border"
+                        />
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          size="sm"
+                          className="absolute -top-2 -right-2"
+                          onClick={() => {
+                            setCoverFile(null);
+                            setCoverPreview('');
+                          }}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="w-32 h-48 mx-auto border-2 border-dashed border-muted-foreground/25 rounded-lg flex items-center justify-center">
+                        <div className="text-center">
+                          <Image className="h-8 w-8 mx-auto text-muted-foreground/50 mb-2" />
+                          <p className="text-sm text-muted-foreground">No cover</p>
+                        </div>
+                      </div>
+                    )}
+                    
+                    <div className="flex justify-center">
+                      <Label htmlFor="cover-upload" className="cursor-pointer">
+                        <Button variant="outline" size="sm" asChild>
+                          <span>
+                            <Upload className="h-4 w-4 mr-2" />
+                            Upload Cover
+                          </span>
+                        </Button>
+                      </Label>
+                      <Input
+                        id="cover-upload"
+                        type="file"
+                        accept="image/*"
+                        onChange={handleCoverChange}
+                        className="hidden"
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground text-center">
+                      JPG, PNG, GIF. Max size 5MB. Recommended: 400x600px
+                    </p>
+                  </div>
+                </div>
+
                 {/* Tags */}
                 <div>
                   <Label htmlFor="tags">Tags</Label>
@@ -349,6 +508,62 @@ export default function Write() {
                     placeholder="Chapter 1: ..."
                     className="mt-1"
                   />
+                </div>
+
+                {/* Chapter Image */}
+                <div>
+                  <Label>Chapter Image (Optional)</Label>
+                  <div className="mt-2 space-y-4">
+                    {chapterImagePreview ? (
+                      <div className="relative w-full max-w-md mx-auto">
+                        <img
+                          src={chapterImagePreview}
+                          alt="Chapter image preview"
+                          className="w-full h-48 object-cover rounded-lg border"
+                        />
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          size="sm"
+                          className="absolute -top-2 -right-2"
+                          onClick={() => {
+                            setChapterImageFile(null);
+                            setChapterImagePreview('');
+                          }}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="w-full max-w-md mx-auto h-32 border-2 border-dashed border-muted-foreground/25 rounded-lg flex items-center justify-center">
+                        <div className="text-center">
+                          <Image className="h-6 w-6 mx-auto text-muted-foreground/50 mb-1" />
+                          <p className="text-sm text-muted-foreground">No chapter image</p>
+                        </div>
+                      </div>
+                    )}
+                    
+                    <div className="flex justify-center">
+                      <Label htmlFor="chapter-image-upload" className="cursor-pointer">
+                        <Button variant="outline" size="sm" asChild>
+                          <span>
+                            <Upload className="h-4 w-4 mr-2" />
+                            Upload Image
+                          </span>
+                        </Button>
+                      </Label>
+                      <Input
+                        id="chapter-image-upload"
+                        type="file"
+                        accept="image/*"
+                        onChange={handleChapterImageChange}
+                        className="hidden"
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground text-center">
+                      JPG, PNG, GIF. Max size 5MB.
+                    </p>
+                  </div>
                 </div>
 
                 <div>

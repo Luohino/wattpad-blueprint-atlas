@@ -93,6 +93,7 @@ export const Header = () => {
             <Input
               placeholder="Search stories, authors..."
               className="pl-10 bg-muted/50 border-none focus:bg-background"
+              onFocus={() => navigate('/discover')}
             />
           </div>
         </div>

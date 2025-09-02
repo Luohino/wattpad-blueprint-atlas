@@ -49,10 +49,10 @@ const Index = () => {
     }
   };
 
-  const displayStories = stories.length > 0 ? stories : mockStories;
-  const featuredStory = displayStories[0];
-  const trendingStories = displayStories.slice(0, 3);
-  const newStories = displayStories;
+  // Use only real stories from database
+  const featuredStory = stories[0];
+  const trendingStories = stories.slice(0, 3);
+  const newStories = stories;
 
   return (
     <div className="min-h-screen bg-background">
@@ -124,13 +124,15 @@ const Index = () => {
 
           <TabsContent value="discover" className="space-y-8">
             {/* Featured Story */}
-            <section>
-              <div className="flex items-center gap-2 mb-4">
-                <Crown className="w-5 h-5 text-primary" />
-                <h2 className="text-2xl font-bold">Featured Story</h2>
-              </div>
-              <StoryCard story={featuredStory} variant="featured" />
-            </section>
+            {featuredStory && (
+              <section>
+                <div className="flex items-center gap-2 mb-4">
+                  <Crown className="w-5 h-5 text-primary" />
+                  <h2 className="text-2xl font-bold">Featured Story</h2>
+                </div>
+                <StoryCard story={featuredStory} variant="featured" />
+              </section>
+            )}
 
             {/* Genre Filter */}
             <section>
@@ -161,11 +163,32 @@ const Index = () => {
             {/* Stories Grid */}
             <section>
               <h3 className="text-lg font-semibold mb-4">Popular Stories</h3>
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
-                {newStories.map(story => (
-                  <StoryCard key={story.id} story={story} />
-                ))}
-              </div>
+              {loading ? (
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+                  {Array.from({ length: 10 }).map((_, i) => (
+                    <div key={i} className="animate-pulse">
+                      <div className="aspect-[3/4] bg-muted rounded-lg mb-3"></div>
+                      <div className="h-4 bg-muted rounded mb-2"></div>
+                      <div className="h-3 bg-muted rounded w-2/3"></div>
+                    </div>
+                  ))}
+                </div>
+              ) : newStories.length > 0 ? (
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+                  {newStories.map(story => (
+                    <StoryCard key={story.id} story={story} />
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <BookOpen className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="text-lg font-medium mb-2">No stories yet</h3>
+                  <p className="text-muted-foreground">Be the first to share your story!</p>
+                  <Button className="mt-4" onClick={() => navigate('/write')}>
+                    Start Writing
+                  </Button>
+                </div>
+              )}
             </section>
           </TabsContent>
 

@@ -16,6 +16,7 @@ import Settings from "./pages/Settings";
 import Help from "./pages/Help";
 import NotFound from "./pages/NotFound";
 import Read from "./pages/Read";
+import ReadChapter from "./pages/ReadChapter";
 import Notifications from "./pages/Notifications";
 import EditProfile from "./pages/EditProfile";
 
@@ -32,7 +33,7 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/story/:id" element={<Story />} />
-            <Route path="/read/:storyId/:chapterNumber" element={<Read />} />
+            <Route path="/read/:storyId/:chapterId" element={<ReadChapter />} />
             <Route path="/profile/:username" element={<Profile />} />
             <Route path="/profile/:username/edit" element={<EditProfile />} />
             <Route path="/write" element={<Write />} />

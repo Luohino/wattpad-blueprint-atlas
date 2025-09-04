@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -14,6 +14,7 @@ import { toast } from 'sonner';
 
 export default function Profile() {
   const { username } = useParams();
+  const navigate = useNavigate();
   const { user } = useAuth();
   const [profile, setProfile] = useState<any>(null);
   const [stories, setStories] = useState<any[]>([]);
@@ -207,11 +208,11 @@ export default function Profile() {
             <div className="flex gap-3">
               {isOwnProfile ? (
                 <>
-                  <Button variant="outline" size="sm">
+                  <Button variant="outline" size="sm" onClick={() => navigate('/edit-profile')}>
                     <Edit3 className="mr-2 h-4 w-4" />
                     Edit Profile
                   </Button>
-                  <Button variant="outline" size="sm">
+                  <Button variant="outline" size="sm" onClick={() => navigate('/settings')}>
                     <Settings className="mr-2 h-4 w-4" />
                     Settings
                   </Button>

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
@@ -12,6 +12,7 @@ import { toast } from 'sonner';
 
 export default function Story() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const { user } = useAuth();
   const [story, setStory] = useState<any>(null);
   const [chapters, setChapters] = useState<any[]>([]);
@@ -349,7 +350,11 @@ export default function Story() {
               </h3>
               <div className="space-y-2">
                 {chapters.map((chapter) => (
-                  <Card key={chapter.id} className="hover:bg-accent/50 cursor-pointer transition-colors">
+                  <Card 
+                    key={chapter.id} 
+                    className="hover:bg-accent/50 cursor-pointer transition-colors"
+                    onClick={() => navigate(`/read/${id}/${chapter.id}`)}
+                  >
                     <CardContent className="p-4">
                       <div className="flex items-center justify-between">
                         <div>

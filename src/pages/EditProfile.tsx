@@ -21,7 +21,7 @@ interface ProfileData {
 
 export default function EditProfile() {
   const { username } = useParams<{ username: string }>();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -39,15 +39,22 @@ export default function EditProfile() {
   useEffect(() => {
     console.log('EditProfile useEffect - user:', user);
     console.log('EditProfile useEffect - username:', username);
+    console.log('EditProfile useEffect - authLoading:', authLoading);
+    
+    // Wait for auth to finish loading
+    if (authLoading) {
+      console.log('Auth still loading, waiting...');
+      return;
+    }
     
     if (!user) {
-      console.log('No user found, redirecting to auth');
+      console.log('No user found after auth loaded, redirecting to auth');
       navigate('/auth');
       return;
     }
 
     fetchProfile();
-  }, [user, username]);
+  }, [user, username, authLoading]);
 
   const fetchProfile = async () => {
     if (!user) return;

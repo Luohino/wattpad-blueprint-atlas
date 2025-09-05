@@ -208,7 +208,13 @@ export default function Profile() {
             <div className="flex gap-3">
               {isOwnProfile ? (
                 <>
-                  <Button variant="outline" size="sm" onClick={() => navigate(`/profile/${profile.username}/edit`)}>
+                  <Button variant="outline" size="sm" onClick={() => {
+                    const targetUsername = profile?.username || username;
+                    console.log('Edit profile clicked, navigating to:', `/profile/${targetUsername}/edit`);
+                    console.log('Profile data:', profile);
+                    console.log('URL username:', username);
+                    navigate(`/profile/${targetUsername}/edit`);
+                  }}>
                     <Edit3 className="mr-2 h-4 w-4" />
                     Edit Profile
                   </Button>

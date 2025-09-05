@@ -37,7 +37,11 @@ export default function EditProfile() {
   const [previewUrl, setPreviewUrl] = useState<string>('');
 
   useEffect(() => {
+    console.log('EditProfile useEffect - user:', user);
+    console.log('EditProfile useEffect - username:', username);
+    
     if (!user) {
+      console.log('No user found, redirecting to auth');
       navigate('/auth');
       return;
     }
@@ -59,7 +63,11 @@ export default function EditProfile() {
       if (error) throw error;
 
       // Check if this is the user's own profile
+      console.log('Profile data user_id:', data.user_id);
+      console.log('Current user id:', user.id);
+      
       if (data.user_id !== user.id) {
+        console.log('Access denied - user IDs do not match');
         toast({
           title: "Access denied",
           description: "You can only edit your own profile.",
@@ -68,6 +76,8 @@ export default function EditProfile() {
         navigate(`/profile/${username}`);
         return;
       }
+      
+      console.log('Access granted - proceeding to load profile data');
 
       setProfileData({
         username: data.username,

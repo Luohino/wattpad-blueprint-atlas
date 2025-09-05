@@ -208,7 +208,7 @@ export default function Profile() {
             <div className="flex gap-3">
               {isOwnProfile ? (
                 <>
-                  <Button variant="outline" size="sm" onClick={() => navigate('/edit-profile')}>
+                  <Button variant="outline" size="sm" onClick={() => navigate(`/profile/${profile.username}/edit`)}>
                     <Edit3 className="mr-2 h-4 w-4" />
                     Edit Profile
                   </Button>

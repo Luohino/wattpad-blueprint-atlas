@@ -27,8 +27,33 @@ export function useAuth() {
     return () => subscription.unsubscribe();
   }, []);
 
-// Fix signup system to use email confirmation instead of OTP
   const signUp = async (email: string, password: string, username: string, displayName: string) => {
+    // Validate username format
+    const { data: isUsernameValid } = await supabase.rpc('validate_username', {
+      username_input: username
+    });
+    
+    if (!isUsernameValid) {
+      return { 
+        error: { 
+          message: 'Username must be 3-30 characters with only letters, numbers, and underscores.' 
+        } 
+      };
+    }
+
+    // Check username availability
+    const { data: isAvailable } = await supabase.rpc('check_username_availability', {
+      username_input: username
+    });
+    
+    if (!isAvailable) {
+      return { 
+        error: { 
+          message: 'This username is already taken. Please choose another.' 
+        } 
+      };
+    }
+
     const { error } = await supabase.auth.signUp({
       email,
       password,

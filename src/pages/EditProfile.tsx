@@ -17,6 +17,15 @@ interface ProfileData {
   display_name: string;
   bio: string;
   avatar_url: string;
+  background_url: string;
+  pronouns: string;
+  location: string;
+  website: string;
+  social_google: string;
+  social_facebook: string;
+  social_twitter: string;
+  social_instagram: string;
+  social_linkedin: string;
 }
 
 export default function EditProfile() {
@@ -29,12 +38,25 @@ export default function EditProfile() {
     username: '',
     display_name: '',
     bio: '',
-    avatar_url: ''
+    avatar_url: '',
+    background_url: '',
+    pronouns: '',
+    location: '',
+    website: '',
+    social_google: '',
+    social_facebook: '',
+    social_twitter: '',
+    social_instagram: '',
+    social_linkedin: ''
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string>('');
+  const [backgroundFile, setBackgroundFile] = useState<File | null>(null);
+  const [backgroundPreviewUrl, setBackgroundPreviewUrl] = useState<string>('');
+  const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
+  const [checkingUsername, setCheckingUsername] = useState(false);
 
   useEffect(() => {
     console.log('EditProfile useEffect - user:', user);
@@ -60,6 +82,31 @@ export default function EditProfile() {
       navigate('/');
     }
   }, [user, username, authLoading, navigate]);
+
+  // Check username availability with debouncing
+  useEffect(() => {
+    if (!profileData.username || profileData.username.length < 3) {
+      setUsernameAvailable(null);
+      return;
+    }
+
+    const debounceTimer = setTimeout(async () => {
+      setCheckingUsername(true);
+      try {
+        const { data: isAvailable } = await supabase.rpc('check_username_availability', {
+          username_input: profileData.username
+        });
+        setUsernameAvailable(isAvailable);
+      } catch (error) {
+        console.error('Error checking username:', error);
+        setUsernameAvailable(null);
+      } finally {
+        setCheckingUsername(false);
+      }
+    }, 500);
+
+    return () => clearTimeout(debounceTimer);
+  }, [profileData.username]);
 
   const fetchProfile = async () => {
     if (!user || !username) return;
@@ -117,7 +164,16 @@ export default function EditProfile() {
         username: data.username,
         display_name: data.display_name,
         bio: data.bio || '',
-        avatar_url: data.avatar_url || ''
+        avatar_url: data.avatar_url || '',
+        background_url: data.background_url || '',
+        pronouns: data.pronouns || '',
+        location: data.location || '',
+        website: data.website || '',
+        social_google: data.social_google || '',
+        social_facebook: data.social_facebook || '',
+        social_twitter: data.social_twitter || '',
+        social_instagram: data.social_instagram || '',
+        social_linkedin: data.social_linkedin || ''
       });
 
       setPreviewUrl(data.avatar_url || '');
@@ -155,6 +211,27 @@ export default function EditProfile() {
     }
   };
 
+  const handleBackgroundChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 10 * 1024 * 1024) { // 10MB limit for background
+        toast({
+          title: "File too large",
+          description: "Please choose an image under 10MB.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      setBackgroundFile(file);
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setBackgroundPreviewUrl(e.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const uploadAvatar = async (): Promise<string | null> => {
     if (!avatarFile || !user) return null;
 
@@ -186,12 +263,69 @@ export default function EditProfile() {
     }
   };
 
+  const uploadBackground = async (): Promise<string | null> => {
+    if (!backgroundFile || !user) return null;
+
+    try {
+      const fileExt = backgroundFile.name.split('.').pop();
+      const fileName = `${user.id}/background.${fileExt}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('profile-pictures')
+        .upload(fileName, backgroundFile, {
+          upsert: true
+        });
+
+      if (uploadError) throw uploadError;
+
+      const { data } = supabase.storage
+        .from('profile-pictures')
+        .getPublicUrl(fileName);
+
+      return data.publicUrl;
+    } catch (error) {
+      console.error('Error uploading background:', error);
+      toast({
+        title: "Upload failed",
+        description: "Failed to upload background image. Please try again.",
+        variant: "destructive"
+      });
+      return null;
+    }
+  };
+
   const handleSave = async () => {
     if (!user) return;
+
+    // Validate username
+    if (profileData.username !== username) {
+      const { data: isUsernameValid } = await supabase.rpc('validate_username', {
+        username_input: profileData.username
+      });
+      
+      if (!isUsernameValid) {
+        toast({
+          title: "Invalid username",
+          description: "Username must be 3-30 characters with only letters, numbers, and underscores.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      if (!usernameAvailable) {
+        toast({
+          title: "Username taken",
+          description: "This username is already taken. Please choose another.",
+          variant: "destructive"
+        });
+        return;
+      }
+    }
 
     setSaving(true);
     try {
       let avatarUrl = profileData.avatar_url;
+      let backgroundUrl = profileData.background_url;
 
       // Upload new avatar if one was selected
       if (avatarFile) {
@@ -201,12 +335,30 @@ export default function EditProfile() {
         }
       }
 
+      // Upload new background if one was selected
+      if (backgroundFile) {
+        const uploadedUrl = await uploadBackground();
+        if (uploadedUrl) {
+          backgroundUrl = uploadedUrl;
+        }
+      }
+
       const { error } = await supabase
         .from('profiles')
         .update({
+          username: profileData.username,
           display_name: profileData.display_name,
           bio: profileData.bio,
-          avatar_url: avatarUrl
+          avatar_url: avatarUrl,
+          background_url: backgroundUrl,
+          pronouns: profileData.pronouns,
+          location: profileData.location,
+          website: profileData.website,
+          social_google: profileData.social_google,
+          social_facebook: profileData.social_facebook,
+          social_twitter: profileData.social_twitter,
+          social_instagram: profileData.social_instagram,
+          social_linkedin: profileData.social_linkedin
         })
         .eq('user_id', user.id);
 
@@ -259,12 +411,45 @@ export default function EditProfile() {
           <CardHeader>
             <CardTitle>Profile Information</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-6">
-            {/* Avatar */}
-            <div className="flex items-center space-x-4">
-              <Avatar className="w-20 h-20">
-                <AvatarImage src={previewUrl} />
-                <AvatarFallback>
+          <CardContent className="space-y-8">
+            {/* Background Picture */}
+            <div className="space-y-4">
+              <Label className="text-lg font-semibold">Profile & Background</Label>
+              <div className="relative">
+                <div className="h-32 bg-gradient-to-r from-primary/20 to-secondary/20 rounded-lg overflow-hidden">
+                  {(backgroundPreviewUrl || profileData.background_url) && (
+                    <img 
+                      src={backgroundPreviewUrl || profileData.background_url} 
+                      alt="Background" 
+                      className="w-full h-full object-cover"
+                    />
+                  )}
+                </div>
+                <div className="absolute bottom-2 right-2">
+                  <Label htmlFor="background-upload" className="cursor-pointer">
+                    <Button variant="secondary" size="sm" asChild>
+                      <span>
+                        <Upload className="h-4 w-4 mr-2" />
+                        Background
+                      </span>
+                    </Button>
+                  </Label>
+                  <Input
+                    id="background-upload"
+                    type="file"
+                    accept="image/*"
+                    onChange={handleBackgroundChange}
+                    className="hidden"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Profile Picture */}
+            <div className="flex items-center space-x-6">
+              <Avatar className="w-24 h-24">
+                <AvatarImage src={previewUrl || profileData.avatar_url} />
+                <AvatarFallback className="text-lg">
                   {profileData.display_name.slice(0, 2).toUpperCase()}
                 </AvatarFallback>
               </Avatar>
@@ -277,7 +462,7 @@ export default function EditProfile() {
                     <Button variant="outline" size="sm" asChild>
                       <span>
                         <Upload className="h-4 w-4 mr-2" />
-                        Choose File
+                        Change Picture
                       </span>
                     </Button>
                   </Label>
@@ -307,63 +492,211 @@ export default function EditProfile() {
               </div>
             </div>
 
-            {/* Username (read-only) */}
-            <div className="space-y-2">
-              <Label htmlFor="username">Username</Label>
-              <Input
-                id="username"
-                value={profileData.username}
-                disabled
-                className="bg-muted"
-              />
-              <p className="text-xs text-muted-foreground">
-                Username cannot be changed after account creation.
-              </p>
+            {/* About Section */}
+            <div className="space-y-4">
+              <Label className="text-lg font-semibold">About</Label>
+              
+              {/* Username */}
+              <div className="space-y-2">
+                <Label htmlFor="username">Username</Label>
+                <div className="relative">
+                  <Input
+                    id="username"
+                    value={profileData.username}
+                    onChange={(e) => setProfileData(prev => ({
+                      ...prev,
+                      username: e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '')
+                    }))}
+                    placeholder="Enter username"
+                    maxLength={30}
+                    className={`pr-8 ${
+                      usernameAvailable === false ? 'border-destructive' : 
+                      usernameAvailable === true ? 'border-green-500' : ''
+                    }`}
+                  />
+                  {checkingUsername && (
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    </div>
+                  )}
+                </div>
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-muted-foreground">
+                    3-30 characters. Letters, numbers, and underscores only.
+                  </p>
+                  {usernameAvailable === false && (
+                    <p className="text-xs text-destructive">Username taken</p>
+                  )}
+                  {usernameAvailable === true && (
+                    <p className="text-xs text-green-600">Available</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Display Name */}
+              <div className="space-y-2">
+                <Label htmlFor="display_name">Full Name</Label>
+                <Input
+                  id="display_name"
+                  value={profileData.display_name}
+                  onChange={(e) => setProfileData(prev => ({
+                    ...prev,
+                    display_name: e.target.value
+                  }))}
+                  placeholder="Your display name"
+                  maxLength={50}
+                />
+              </div>
+
+              {/* Pronouns */}
+              <div className="space-y-2">
+                <Label htmlFor="pronouns">Pronouns</Label>
+                <Input
+                  id="pronouns"
+                  value={profileData.pronouns}
+                  onChange={(e) => setProfileData(prev => ({
+                    ...prev,
+                    pronouns: e.target.value
+                  }))}
+                  placeholder="e.g., He/Him, She/Her, They/Them"
+                  maxLength={20}
+                />
+              </div>
+
+              {/* Location */}
+              <div className="space-y-2">
+                <Label htmlFor="location">Location</Label>
+                <Input
+                  id="location"
+                  value={profileData.location}
+                  onChange={(e) => setProfileData(prev => ({
+                    ...prev,
+                    location: e.target.value
+                  }))}
+                  placeholder="Your location"
+                  maxLength={50}
+                />
+              </div>
+
+              {/* Website */}
+              <div className="space-y-2">
+                <Label htmlFor="website">Website</Label>
+                <Input
+                  id="website"
+                  value={profileData.website}
+                  onChange={(e) => setProfileData(prev => ({
+                    ...prev,
+                    website: e.target.value
+                  }))}
+                  placeholder="https://your-website.com"
+                  maxLength={100}
+                />
+              </div>
+
+              {/* Bio */}
+              <div className="space-y-2">
+                <Label htmlFor="bio">Bio</Label>
+                <Textarea
+                  id="bio"
+                  value={profileData.bio}
+                  onChange={(e) => setProfileData(prev => ({
+                    ...prev,
+                    bio: e.target.value
+                  }))}
+                  placeholder="Tell us about yourself..."
+                  className="min-h-[100px]"
+                  maxLength={500}
+                />
+                <p className="text-xs text-muted-foreground">
+                  {profileData.bio.length}/500 characters
+                </p>
+              </div>
             </div>
 
-            {/* Display Name */}
-            <div className="space-y-2">
-              <Label htmlFor="display_name">Display Name</Label>
-              <Input
-                id="display_name"
-                value={profileData.display_name}
-                onChange={(e) => setProfileData(prev => ({
-                  ...prev,
-                  display_name: e.target.value
-                }))}
-                placeholder="Your display name"
-                maxLength={50}
-              />
-            </div>
+            {/* Social Networks */}
+            <div className="space-y-4">
+              <Label className="text-lg font-semibold">Social Networks</Label>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="social_google">Google</Label>
+                  <Input
+                    id="social_google"
+                    value={profileData.social_google}
+                    onChange={(e) => setProfileData(prev => ({
+                      ...prev,
+                      social_google: e.target.value
+                    }))}
+                    placeholder="Google profile URL"
+                  />
+                </div>
 
-            {/* Bio */}
-            <div className="space-y-2">
-              <Label htmlFor="bio">Bio</Label>
-              <Textarea
-                id="bio"
-                value={profileData.bio}
-                onChange={(e) => setProfileData(prev => ({
-                  ...prev,
-                  bio: e.target.value
-                }))}
-                placeholder="Tell us about yourself..."
-                className="min-h-[100px]"
-                maxLength={500}
-              />
-              <p className="text-xs text-muted-foreground">
-                {profileData.bio.length}/500 characters
-              </p>
+                <div className="space-y-2">
+                  <Label htmlFor="social_facebook">Facebook</Label>
+                  <Input
+                    id="social_facebook"
+                    value={profileData.social_facebook}
+                    onChange={(e) => setProfileData(prev => ({
+                      ...prev,
+                      social_facebook: e.target.value
+                    }))}
+                    placeholder="Facebook profile URL"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="social_twitter">Twitter/X</Label>
+                  <Input
+                    id="social_twitter"
+                    value={profileData.social_twitter}
+                    onChange={(e) => setProfileData(prev => ({
+                      ...prev,
+                      social_twitter: e.target.value
+                    }))}
+                    placeholder="Twitter profile URL"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="social_instagram">Instagram</Label>
+                  <Input
+                    id="social_instagram"
+                    value={profileData.social_instagram}
+                    onChange={(e) => setProfileData(prev => ({
+                      ...prev,
+                      social_instagram: e.target.value
+                    }))}
+                    placeholder="Instagram profile URL"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="social_linkedin">LinkedIn</Label>
+                  <Input
+                    id="social_linkedin"
+                    value={profileData.social_linkedin}
+                    onChange={(e) => setProfileData(prev => ({
+                      ...prev,
+                      social_linkedin: e.target.value
+                    }))}
+                    placeholder="LinkedIn profile URL"
+                  />
+                </div>
+              </div>
             </div>
 
             {/* Action Buttons */}
-            <div className="flex items-center justify-between pt-4">
+            <div className="flex items-center justify-between pt-6 border-t">
               <Button
                 variant="outline"
-                onClick={() => navigate(`/profile/${profileData.username}`)}
+                onClick={() => navigate(`/profile/${username}`)}
               >
                 Cancel
               </Button>
-              <Button onClick={handleSave} disabled={saving}>
+              <Button 
+                onClick={handleSave} 
+                disabled={saving || (profileData.username !== username && !usernameAvailable)}
+              >
                 {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                 Save Changes
               </Button>

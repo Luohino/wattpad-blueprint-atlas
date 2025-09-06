@@ -53,21 +53,48 @@ export default function EditProfile() {
       return;
     }
 
-    fetchProfile();
-  }, [user, username, authLoading]);
+    if (username) {
+      fetchProfile();
+    } else {
+      console.log('No username in URL, redirecting to home');
+      navigate('/');
+    }
+  }, [user, username, authLoading, navigate]);
 
   const fetchProfile = async () => {
-    if (!user) return;
+    if (!user || !username) return;
 
     try {
       setLoading(true);
+      
+      // Fetch the profile
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('username', username)
-        .single();
+        .maybeSingle();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Profile fetch error:', error);
+        toast({
+          title: "Error",
+          description: "Failed to load profile.",
+          variant: "destructive"
+        });
+        navigate('/');
+        return;
+      }
+
+      if (!data) {
+        console.log('Profile not found for username:', username);
+        toast({
+          title: "Error",
+          description: "Profile not found.",
+          variant: "destructive"
+        });
+        navigate('/');
+        return;
+      }
 
       // Check if this is the user's own profile
       console.log('Profile data user_id:', data.user_id);
@@ -95,12 +122,13 @@ export default function EditProfile() {
 
       setPreviewUrl(data.avatar_url || '');
     } catch (error) {
-      console.error('Error fetching profile:', error);
+      console.error('Unexpected error fetching profile:', error);
       toast({
         title: "Error",
-        description: "Failed to load profile.",
+        description: "An unexpected error occurred.",
         variant: "destructive"
       });
+      navigate('/');
     } finally {
       setLoading(false);
     }

@@ -200,45 +200,72 @@ export type Database = {
       profiles: {
         Row: {
           avatar_url: string | null
+          background_url: string | null
           bio: string | null
           created_at: string
           display_name: string
           followers_count: number | null
           following_count: number | null
           id: string
+          location: string | null
+          pronouns: string | null
+          social_facebook: string | null
+          social_google: string | null
+          social_instagram: string | null
+          social_linkedin: string | null
+          social_twitter: string | null
           stories_count: number | null
           updated_at: string
           user_id: string
           username: string
           verified: boolean | null
+          website: string | null
         }
         Insert: {
           avatar_url?: string | null
+          background_url?: string | null
           bio?: string | null
           created_at?: string
           display_name: string
           followers_count?: number | null
           following_count?: number | null
           id?: string
+          location?: string | null
+          pronouns?: string | null
+          social_facebook?: string | null
+          social_google?: string | null
+          social_instagram?: string | null
+          social_linkedin?: string | null
+          social_twitter?: string | null
           stories_count?: number | null
           updated_at?: string
           user_id: string
           username: string
           verified?: boolean | null
+          website?: string | null
         }
         Update: {
           avatar_url?: string | null
+          background_url?: string | null
           bio?: string | null
           created_at?: string
           display_name?: string
           followers_count?: number | null
           following_count?: number | null
           id?: string
+          location?: string | null
+          pronouns?: string | null
+          social_facebook?: string | null
+          social_google?: string | null
+          social_instagram?: string | null
+          social_linkedin?: string | null
+          social_twitter?: string | null
           stories_count?: number | null
           updated_at?: string
           user_id?: string
           username?: string
           verified?: boolean | null
+          website?: string | null
         }
         Relationships: []
       }
@@ -503,6 +530,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      check_username_availability: {
+        Args: { username_input: string }
+        Returns: boolean
+      }
       get_trending_stories: {
         Args: Record<PropertyKey, never>
         Returns: {
@@ -521,6 +552,10 @@ export type Database = {
       increment_reads_count: {
         Args: { story_id_param: string }
         Returns: undefined
+      }
+      validate_username: {
+        Args: { username_input: string }
+        Returns: boolean
       }
     }
     Enums: {

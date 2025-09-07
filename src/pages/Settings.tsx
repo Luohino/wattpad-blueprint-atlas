@@ -41,6 +41,10 @@ export default function Settings() {
     push_follows: true,
     push_votes: true,
   });
+  const [privacy, setPrivacy] = useState({
+    profile_private: false,
+    show_reading_activity: true,
+  });
 
   useEffect(() => {
     if (!user) {
@@ -79,6 +83,30 @@ export default function Settings() {
           background_url: data.background_url || '',
         });
       }
+
+      // Fetch user preferences
+      const { data: prefData, error: prefError } = await supabase
+        .from('user_preferences')
+        .select('*')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (prefError) {
+        console.error('Error fetching preferences:', prefError);
+      } else if (prefData) {
+        setNotifications({
+          email_comments: prefData.email_comments,
+          email_follows: prefData.email_follows,
+          email_votes: prefData.email_votes,
+          push_comments: prefData.push_comments,
+          push_follows: prefData.push_follows,
+          push_votes: prefData.push_votes,
+        });
+        setPrivacy({
+          profile_private: prefData.profile_private,
+          show_reading_activity: prefData.show_reading_activity,
+        });
+      }
     } catch (error) {
       console.error('Error fetching profile:', error);
       toast.error('Failed to load profile');
@@ -102,6 +130,28 @@ export default function Settings() {
       toast.error('Failed to update profile');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const updatePreferences = async () => {
+    if (!user) return;
+
+    try {
+      const { error } = await supabase
+        .from('user_preferences')
+        .upsert({
+          user_id: user.id,
+          ...notifications,
+          ...privacy,
+        }, {
+          onConflict: 'user_id'
+        });
+
+      if (error) throw error;
+      toast.success('Preferences updated successfully');
+    } catch (error) {
+      console.error('Error updating preferences:', error);
+      toast.error('Failed to update preferences');
     }
   };
 
@@ -312,9 +362,10 @@ export default function Settings() {
                     </div>
                     <Switch
                       checked={notifications.email_comments}
-                      onCheckedChange={(checked) => 
-                        setNotifications({ ...notifications, email_comments: checked })
-                      }
+                      onCheckedChange={(checked) => {
+                        setNotifications({ ...notifications, email_comments: checked });
+                        updatePreferences();
+                      }}
                     />
                   </div>
                   <div className="flex items-center justify-between">
@@ -324,9 +375,10 @@ export default function Settings() {
                     </div>
                     <Switch
                       checked={notifications.email_follows}
-                      onCheckedChange={(checked) => 
-                        setNotifications({ ...notifications, email_follows: checked })
-                      }
+                      onCheckedChange={(checked) => {
+                        setNotifications({ ...notifications, email_follows: checked });
+                        updatePreferences();
+                      }}
                     />
                   </div>
                   <div className="flex items-center justify-between">
@@ -336,9 +388,10 @@ export default function Settings() {
                     </div>
                     <Switch
                       checked={notifications.email_votes}
-                      onCheckedChange={(checked) => 
-                        setNotifications({ ...notifications, email_votes: checked })
-                      }
+                      onCheckedChange={(checked) => {
+                        setNotifications({ ...notifications, email_votes: checked });
+                        updatePreferences();
+                      }}
                     />
                   </div>
                 </div>
@@ -356,9 +409,10 @@ export default function Settings() {
                     </div>
                     <Switch
                       checked={notifications.push_comments}
-                      onCheckedChange={(checked) => 
-                        setNotifications({ ...notifications, push_comments: checked })
-                      }
+                      onCheckedChange={(checked) => {
+                        setNotifications({ ...notifications, push_comments: checked });
+                        updatePreferences();
+                      }}
                     />
                   </div>
                   <div className="flex items-center justify-between">
@@ -368,9 +422,10 @@ export default function Settings() {
                     </div>
                     <Switch
                       checked={notifications.push_follows}
-                      onCheckedChange={(checked) => 
-                        setNotifications({ ...notifications, push_follows: checked })
-                      }
+                      onCheckedChange={(checked) => {
+                        setNotifications({ ...notifications, push_follows: checked });
+                        updatePreferences();
+                      }}
                     />
                   </div>
                   <div className="flex items-center justify-between">
@@ -380,9 +435,10 @@ export default function Settings() {
                     </div>
                     <Switch
                       checked={notifications.push_votes}
-                      onCheckedChange={(checked) => 
-                        setNotifications({ ...notifications, push_votes: checked })
-                      }
+                      onCheckedChange={(checked) => {
+                        setNotifications({ ...notifications, push_votes: checked });
+                        updatePreferences();
+                      }}
                     />
                   </div>
                 </div>
@@ -404,7 +460,13 @@ export default function Settings() {
                   <p className="font-medium">Make Profile Private</p>
                   <p className="text-sm text-muted-foreground">Only followers can see your profile and stories</p>
                 </div>
-                <Switch />
+                <Switch
+                  checked={privacy.profile_private}
+                  onCheckedChange={(checked) => {
+                    setPrivacy({ ...privacy, profile_private: checked });
+                    updatePreferences();
+                  }}
+                />
               </div>
               
               <div className="flex items-center justify-between">
@@ -412,7 +474,13 @@ export default function Settings() {
                   <p className="font-medium">Show Reading Activity</p>
                   <p className="text-sm text-muted-foreground">Let others see what you're reading</p>
                 </div>
-                <Switch defaultChecked />
+                <Switch
+                  checked={privacy.show_reading_activity}
+                  onCheckedChange={(checked) => {
+                    setPrivacy({ ...privacy, show_reading_activity: checked });
+                    updatePreferences();
+                  }}
+                />
               </div>
             </CardContent>
           </Card>

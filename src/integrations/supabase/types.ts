@@ -525,6 +525,51 @@ export type Database = {
           },
         ]
       }
+      user_preferences: {
+        Row: {
+          created_at: string
+          email_comments: boolean | null
+          email_follows: boolean | null
+          email_votes: boolean | null
+          id: string
+          profile_private: boolean | null
+          push_comments: boolean | null
+          push_follows: boolean | null
+          push_votes: boolean | null
+          show_reading_activity: boolean | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          email_comments?: boolean | null
+          email_follows?: boolean | null
+          email_votes?: boolean | null
+          id?: string
+          profile_private?: boolean | null
+          push_comments?: boolean | null
+          push_follows?: boolean | null
+          push_votes?: boolean | null
+          show_reading_activity?: boolean | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          email_comments?: boolean | null
+          email_follows?: boolean | null
+          email_votes?: boolean | null
+          id?: string
+          profile_private?: boolean | null
+          push_comments?: boolean | null
+          push_follows?: boolean | null
+          push_votes?: boolean | null
+          show_reading_activity?: boolean | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

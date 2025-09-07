@@ -23,6 +23,15 @@ export default function Settings() {
     display_name: '',
     bio: '',
     avatar_url: '',
+    pronouns: '',
+    location: '',
+    website: '',
+    social_instagram: '',
+    social_twitter: '',
+    social_facebook: '',
+    social_linkedin: '',
+    social_google: '',
+    background_url: '',
   });
   const [notifications, setNotifications] = useState({
     email_comments: true,
@@ -59,6 +68,15 @@ export default function Settings() {
           display_name: data.display_name || '',
           bio: data.bio || '',
           avatar_url: data.avatar_url || '',
+          pronouns: data.pronouns || '',
+          location: data.location || '',
+          website: data.website || '',
+          social_instagram: data.social_instagram || '',
+          social_twitter: data.social_twitter || '',
+          social_facebook: data.social_facebook || '',
+          social_linkedin: data.social_linkedin || '',
+          social_google: data.social_google || '',
+          background_url: data.background_url || '',
         });
       }
     } catch (error) {
@@ -141,7 +159,11 @@ export default function Settings() {
                     value={profile.username}
                     onChange={(e) => setProfile({ ...profile, username: e.target.value })}
                     placeholder="Enter your username"
+                    disabled
                   />
+                  <p className="text-sm text-muted-foreground">
+                    Username cannot be changed after account creation
+                  </p>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="display_name">Display Name</Label>
@@ -154,6 +176,38 @@ export default function Settings() {
                 </div>
               </div>
 
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="pronouns">Pronouns</Label>
+                  <Input
+                    id="pronouns"
+                    value={profile.pronouns}
+                    onChange={(e) => setProfile({ ...profile, pronouns: e.target.value })}
+                    placeholder="e.g., she/her, he/him, they/them"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="location">Location</Label>
+                  <Input
+                    id="location"
+                    value={profile.location}
+                    onChange={(e) => setProfile({ ...profile, location: e.target.value })}
+                    placeholder="Enter your location"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="website">Website</Label>
+                <Input
+                  id="website"
+                  value={profile.website}
+                  onChange={(e) => setProfile({ ...profile, website: e.target.value })}
+                  placeholder="https://yourwebsite.com"
+                  type="url"
+                />
+              </div>
+
               <div className="space-y-2">
                 <Label htmlFor="bio">Bio</Label>
                 <Textarea
@@ -163,6 +217,48 @@ export default function Settings() {
                   placeholder="Tell us about yourself..."
                   rows={4}
                 />
+              </div>
+
+              <div className="space-y-4">
+                <Label>Social Media Links</Label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="social_instagram" className="text-sm">Instagram</Label>
+                    <Input
+                      id="social_instagram"
+                      value={profile.social_instagram}
+                      onChange={(e) => setProfile({ ...profile, social_instagram: e.target.value })}
+                      placeholder="Instagram username"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="social_twitter" className="text-sm">Twitter</Label>
+                    <Input
+                      id="social_twitter"
+                      value={profile.social_twitter}
+                      onChange={(e) => setProfile({ ...profile, social_twitter: e.target.value })}
+                      placeholder="Twitter username"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="social_facebook" className="text-sm">Facebook</Label>
+                    <Input
+                      id="social_facebook"
+                      value={profile.social_facebook}
+                      onChange={(e) => setProfile({ ...profile, social_facebook: e.target.value })}
+                      placeholder="Facebook username"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="social_linkedin" className="text-sm">LinkedIn</Label>
+                    <Input
+                      id="social_linkedin"
+                      value={profile.social_linkedin}
+                      onChange={(e) => setProfile({ ...profile, social_linkedin: e.target.value })}
+                      placeholder="LinkedIn username"
+                    />
+                  </div>
+                </div>
               </div>
 
               <Button onClick={updateProfile} disabled={loading}>

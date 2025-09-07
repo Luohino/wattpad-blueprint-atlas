@@ -8,7 +8,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Book } from 'lucide-react';
+import { Loader2, Book, CheckCircle, XCircle } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 
 export default function Auth() {
   const { user, signUp, signIn, sendPasswordReset, updatePassword, resetPassword, loading: authLoading } = useAuth();
@@ -18,6 +19,8 @@ export default function Auth() {
   const [activeTab, setActiveTab] = useState('signin');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [usernameStatus, setUsernameStatus] = useState<'idle' | 'checking' | 'valid' | 'invalid' | 'taken'>('idle');
+  const [usernameMessage, setUsernameMessage] = useState('');
 
   // Sign in form data
   const [signInData, setSignInData] = useState({
@@ -47,6 +50,60 @@ export default function Auth() {
       setActiveTab('reset');
     }
   }, [searchParams]);
+
+  // Debounced username validation
+  useEffect(() => {
+    const validateUsername = async () => {
+      const username = signUpData.username.trim();
+      
+      if (!username) {
+        setUsernameStatus('idle');
+        setUsernameMessage('');
+        return;
+      }
+
+      if (username.length < 3) {
+        setUsernameStatus('invalid');
+        setUsernameMessage('Username must be at least 3 characters');
+        return;
+      }
+
+      if (username.length > 30) {
+        setUsernameStatus('invalid');
+        setUsernameMessage('Username must be less than 30 characters');
+        return;
+      }
+
+      if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+        setUsernameStatus('invalid');
+        setUsernameMessage('Username can only contain letters, numbers, and underscores');
+        return;
+      }
+
+      setUsernameStatus('checking');
+      setUsernameMessage('Checking availability...');
+
+      try {
+        const { data: isAvailable } = await supabase.rpc('check_username_availability', {
+          username_input: username
+        });
+
+        if (isAvailable) {
+          setUsernameStatus('valid');
+          setUsernameMessage('Username is available');
+        } else {
+          setUsernameStatus('taken');
+          setUsernameMessage('Username is already taken');
+        }
+      } catch (error) {
+        setUsernameStatus('invalid');
+        setUsernameMessage('Error checking username');
+      }
+    };
+
+    const timeoutId = setTimeout(validateUsername, 500);
+    return () => clearTimeout(timeoutId);
+  }, [signUpData.username]);
 
   if (authLoading) {
     return (
@@ -233,12 +290,33 @@ export default function Auth() {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="username">Username</Label>
-                      <Input
-                        id="username"
-                        value={signUpData.username}
-                        onChange={(e) => setSignUpData({...signUpData, username: e.target.value})}
-                        required
-                      />
+                      <div className="relative">
+                        <Input
+                          id="username"
+                          value={signUpData.username}
+                          onChange={(e) => setSignUpData({...signUpData, username: e.target.value})}
+                          className={`pr-10 ${
+                            usernameStatus === 'valid' ? 'border-green-500' :
+                            usernameStatus === 'invalid' || usernameStatus === 'taken' ? 'border-red-500' :
+                            ''
+                          }`}
+                          required
+                        />
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                          {usernameStatus === 'checking' && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+                          {usernameStatus === 'valid' && <CheckCircle className="h-4 w-4 text-green-500" />}
+                          {(usernameStatus === 'invalid' || usernameStatus === 'taken') && <XCircle className="h-4 w-4 text-red-500" />}
+                        </div>
+                      </div>
+                      {usernameMessage && (
+                        <p className={`text-sm ${
+                          usernameStatus === 'valid' ? 'text-green-600' :
+                          usernameStatus === 'invalid' || usernameStatus === 'taken' ? 'text-red-600' :
+                          'text-muted-foreground'
+                        }`}>
+                          {usernameMessage}
+                        </p>
+                      )}
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="displayName">Display Name</Label>
@@ -291,7 +369,11 @@ export default function Auth() {
                     </Alert>
                   )}
 
-                  <Button type="submit" className="w-full" disabled={isLoading}>
+                  <Button 
+                    type="submit" 
+                    className="w-full" 
+                    disabled={isLoading || usernameStatus === 'checking' || usernameStatus === 'invalid' || usernameStatus === 'taken'}
+                  >
                     {isLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                     Create Account
                   </Button>
